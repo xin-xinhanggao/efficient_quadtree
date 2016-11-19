@@ -74,16 +74,10 @@ cv::Mat buildPixelToIndexLookup(cv::InputArray mask, cv::InputArray quadtree, in
     const float *quadPtr = quad.ptr<float>();
 
     for (int id = 0; id < (m.rows * m.cols); ++id) {
-        /*
+        
         if(maskPtr[id] == DIRICHLET_BD)
             pixelToIndexPtr[id] = -1;
         else if(quadPtr[id] > 0)
-            pixelToIndexPtr[id] = npixel++;
-        else
-            pixelToIndexPtr[id] = -1;
-        */
-
-        if(quadPtr[id] > 0)
             pixelToIndexPtr[id] = npixel++;
         else
             pixelToIndexPtr[id] = -1;
@@ -282,10 +276,6 @@ void interpolate(cv::InputArray quadtree, std::set<Node> &tree, cv::OutputArray 
             float blendingFactor = xindex * 1.0 / dim;
             for(int channel = 0; channel < 3; channel++)
                 r.ptr<float>(x + xindex)[3 * (y + yindex) + channel] = (1 - blendingFactor) * r.ptr<float>(x)[3 * (y + yindex) + channel] + blendingFactor * r.ptr<float>(x + dim)[3 * (y + yindex) + channel];
-            /*
-            float blendingFactor = xindex * 1.0 / dim;
-            residual.getMat().at<cv::Vec3b>(x + xindex, y + yindex) = (1 - blendingFactor) * residual.getMat().at<cv::Vec3b>(x, y + yindex) + blendingFactor * residual.getMat().at<cv::Vec3b>(x + dim, y + yindex);
-            */
         }
     }
 
@@ -345,7 +335,6 @@ void refine(std::set<Node> &leafnode, cv::OutputArray quadtree, int height, int 
                 changeflag++;
             }
         }
-        //std::cout<<changeflag<<std::endl;
     }
 }
 
@@ -413,8 +402,6 @@ void solvePoissonEquationsFast( //f means source value
     bv.copyTo(composed, bm == DIRICHLET_BD);
 
     cv::Mat r = result_.getMat();
-    //bv.copyTo(r, bm == DIRICHLET_BD);
-    composed.copyTo(r);
 
     int nUnknowns = 0;
     cv::Mat_<int> unknownIdx = buildPixelToIndexLookup(bm, quadtree, nUnknowns);
@@ -449,13 +436,7 @@ void solvePoissonEquationsFast( //f means source value
                 continue;
             }
 
-            if(bm.ptr<uchar>(row)[col] == 1)
-            {
-                lhsTriplets.push_back(Eigen::Triplet<float>(pid, pid, 1));
-                continue;
-            }
-
-            lhsTriplets.push_back(Eigen::Triplet<float>(pid, pid, 4));
+            int lab = 4;
             int dim = quadtree.at<float>(row, col);  
 
 
@@ -469,13 +450,10 @@ void solvePoissonEquationsFast( //f means source value
 
                     if(top != -1)
                         lhsTriplets.push_back(Eigen::Triplet<float>(pid, top, -0.5));
-                    else
-                        rhs.row(pid) += 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row - dim, col + dim), channels);
 
                     if(bottom != -1)
                         lhsTriplets.push_back(Eigen::Triplet<float>(pid, bottom, -0.5));
-                    else
-                        rhs.row(pid) += 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row + dim, col + dim), channels);
+
                     reserve.row(pid) -= Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, col), channels) - 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row - dim, col + dim), channels)
                      - 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row + dim, col + dim), channels);
 
@@ -487,13 +465,13 @@ void solvePoissonEquationsFast( //f means source value
                     int next = unknownIdx(cv::Point(right, row));
                     if(next != -1) 
                         lhsTriplets.push_back(Eigen::Triplet<float>(pid, next, -1));
-                    else
-                        rhs.row(pid) +=  Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, right), channels);
 
                     reserve.row(pid) -= Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, col), channels) -  Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, right), channels);
                     reserve.row(pid) += Eigen::Map<Eigen::VectorXf>(f.ptr<float>(row, col), channels) -  Eigen::Map<Eigen::VectorXf>(f.ptr<float>(row, right), channels);
                 }
             }
+            else
+                lab--;
 
             int left = quadfind(quadtree, 1, row, col, seam.rows, seam.cols);
             if(left != -1)
@@ -505,13 +483,9 @@ void solvePoissonEquationsFast( //f means source value
 
                         if(top != -1)
                             lhsTriplets.push_back(Eigen::Triplet<float>(pid, top, -0.5));
-                        else
-                            rhs.row(pid) += 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row - dim, col), channels);
 
                         if(bottom != -1)
                             lhsTriplets.push_back(Eigen::Triplet<float>(pid, bottom, -0.5));
-                        else
-                            rhs.row(pid) += 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row + dim, col), channels);
 
                         reserve.row(pid) -= Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, col), channels) - 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row - dim, col), channels)
                      - 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row + dim, col), channels);
@@ -524,13 +498,13 @@ void solvePoissonEquationsFast( //f means source value
                     int next = unknownIdx(cv::Point(left, row));
                     if(next != -1)
                         lhsTriplets.push_back(Eigen::Triplet<float>(pid, next, -1));
-                    else
-                        rhs.row(pid) +=  Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, left), channels);
 
                     reserve.row(pid) -= Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, col), channels) -  Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, left), channels);
                     reserve.row(pid) += Eigen::Map<Eigen::VectorXf>(f.ptr<float>(row, col), channels) -  Eigen::Map<Eigen::VectorXf>(f.ptr<float>(row, left), channels);
                 }
             }
+            else
+                lab--;
 
             int down = quadfind(quadtree, 2, row, col, seam.rows, seam.cols);
             if(down != -1)
@@ -542,13 +516,9 @@ void solvePoissonEquationsFast( //f means source value
 
                     if(leftblock != -1)
                         lhsTriplets.push_back(Eigen::Triplet<float>(pid, leftblock, -0.5));
-                    else
-                        rhs.row(pid) += 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row + dim, col - dim), channels);
 
                     if(rightblock != -1)
                         lhsTriplets.push_back(Eigen::Triplet<float>(pid, rightblock, -0.5));
-                    else
-                        rhs.row(pid) += 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row + dim, col + dim), channels);
 
                     reserve.row(pid) -= Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, col), channels) - 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row + dim, col - dim), channels)
                      - 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row + dim, col + dim), channels);
@@ -561,13 +531,13 @@ void solvePoissonEquationsFast( //f means source value
                     int next = unknownIdx(cv::Point(col, down));
                     if(next != -1)
                         lhsTriplets.push_back(Eigen::Triplet<float>(pid, next, -1));
-                    else
-                        rhs.row(pid) +=  Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(down, col), channels);
 
                     reserve.row(pid) -= Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, col), channels) - Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(down, col), channels);
                     reserve.row(pid) += Eigen::Map<Eigen::VectorXf>(f.ptr<float>(row, col), channels) - Eigen::Map<Eigen::VectorXf>(f.ptr<float>(down, col), channels);
                 }
             }
+            else
+                lab--;
 
             int up = quadfind(quadtree, 3, row, col, seam.rows, seam.cols);
             if(up != -1)
@@ -579,13 +549,9 @@ void solvePoissonEquationsFast( //f means source value
 
                     if(leftblock != -1)
                         lhsTriplets.push_back(Eigen::Triplet<float>(pid, leftblock, -0.5));
-                    else
-                        rhs.row(pid) += 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, col - dim), channels);
 
                     if(rightblock != -1)
                         lhsTriplets.push_back(Eigen::Triplet<float>(pid, rightblock, -0.5));
-                    else
-                        rhs.row(pid) += 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, col + dim), channels);
 
                     reserve.row(pid) -= Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, col), channels) - 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, col - dim), channels)
                      - 0.5 * Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, col + dim), channels);
@@ -598,14 +564,15 @@ void solvePoissonEquationsFast( //f means source value
                     int next = unknownIdx(cv::Point(col, up));
                     if(next != -1)
                         lhsTriplets.push_back(Eigen::Triplet<float>(pid, next, -1));
-                    else
-                        rhs.row(pid) +=  Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(up, col), channels);
 
                     reserve.row(pid) -= Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(row, col), channels) - Eigen::Map<Eigen::VectorXf>(composed.ptr<float>(up, col), channels);
                     reserve.row(pid) += Eigen::Map<Eigen::VectorXf>(f.ptr<float>(row, col), channels) - Eigen::Map<Eigen::VectorXf>(f.ptr<float>(up, col), channels);
                 }
             }
+            else
+                lab--;
 
+            lhsTriplets.push_back(Eigen::Triplet<float>(pid, pid, lab));
             if(seamoutresult.at<float>(row, col) > 0)
                 rhs.row(pid) += reserve.row(pid);
         }
@@ -639,12 +606,8 @@ void solvePoissonEquationsFast( //f means source value
         }
     }
 
-    imshow("residual1", residual);
     interpolate(quadtree, leafnode, residual);
-
-    imshow("residual", residual);
     r = composed + residual;
-
 }
 
 void solvePoissonEquations(
