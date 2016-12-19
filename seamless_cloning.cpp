@@ -52,8 +52,8 @@ int main(int argc, char **argv)
     cv::imwrite("naive.png", result);
 
     seamlessClone(background, foreground, mask, offsetx, offsety, result, CLONE_AVERAGED_GRADIENTS);
-    cv::imshow("Averaged Gradients", result);
-    cv::imwrite("averaged-gradients.png", result);
+    cv::imshow("source Gradients", result);
+    cv::imwrite("source-gradients.png", result);
     
     cv::waitKey();
     

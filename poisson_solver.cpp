@@ -360,7 +360,6 @@ void solvePoissonEquationsFast( //f means source value
         f_.channels() == bdValues_.channels() &&
         bdMask_.channels() == 1);
 
-
     cv::Mat seaminresult, seamoutresult, seam;    
     initquad(f_, bdMask_, bdValues_, seaminresult, seamoutresult, seam);
     
@@ -607,7 +606,11 @@ void solvePoissonEquationsFast( //f means source value
     }
 
     interpolate(quadtree, leafnode, residual);
-    r = composed + residual;
+
+    cv::Mat clearresidual = cv::Mat::zeros(f.size(), f.type());
+    residual.copyTo(clearresidual, bm == 0);
+
+    r = composed + clearresidual;
 }
 
 void solvePoissonEquations(
