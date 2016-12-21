@@ -68,7 +68,7 @@ cv::Mat buildPixelToIndexLookup(cv::InputArray mask, cv::InputArray quadtree, in
 
     cv::Mat_<int> pixelToIndex(mask.size());
     npixel = 0;
-    
+
     int *pixelToIndexPtr = pixelToIndex.ptr<int>();
     const uchar *maskPtr = m.ptr<uchar>();
     const float *quadPtr = quad.ptr<float>();
@@ -78,9 +78,13 @@ cv::Mat buildPixelToIndexLookup(cv::InputArray mask, cv::InputArray quadtree, in
         if(maskPtr[id] == DIRICHLET_BD)
             pixelToIndexPtr[id] = -1;
         else if(quadPtr[id] > 0)
+        {
             pixelToIndexPtr[id] = npixel++;
+        }
         else
+        {
             pixelToIndexPtr[id] = -1;
+        }
     }
 
     return pixelToIndex;
@@ -145,6 +149,7 @@ void initquad(cv::InputArray f_,
     cv::OutputArray seamoutresult,
     cv::OutputArray seam)
 {
+
     cv::Mat seamin,seamout;
     cv::Mat bdseamout;
     cv::Mat seamcal = (cv::Mat_<float>(3, 3) << 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);        
@@ -155,16 +160,18 @@ void initquad(cv::InputArray f_,
     cv::threshold(bdMask_, bdseamout, 0, 1, cv::THRESH_BINARY_INV);
 
     seamout.copyTo(seamoutresult, bdseamout);
-
+    
     seam.getMat() = seaminresult.getMat() + seamoutresult.getMat();
     //seamoutresult.getMat().copyTo(seam.getMat());
 
+    
     cv::Mat ones(seam.getMat().rows, seam.getMat().cols, CV_32F);
     ones.setTo(1);
     cv::Rect rect1(0,ones.rows - 1,ones.cols,1);
     cv::Rect rect2(ones.cols - 1,0,1,ones.rows);
     ones(rect1).copyTo(seam.getMat()(rect1));
     ones(rect2).copyTo(seam.getMat()(rect2));
+
 }
 
 
@@ -365,6 +372,7 @@ void solvePoissonEquationsFast( //f means source value
     
     int pow2_size = std::max(nearest_powerof2(seam.cols), nearest_powerof2(seam.rows));
     cv::Mat quadtree(pow2_size, pow2_size, CV_32F);
+    quadtree.setTo(0);
     cv::Mat quadseam(pow2_size, pow2_size, CV_32F);
     cv::Rect quadrect(0, 0, seam.cols, seam.rows);
     seam.copyTo(quadseam(quadrect));
@@ -401,7 +409,7 @@ void solvePoissonEquationsFast( //f means source value
     bv.copyTo(composed, bm == DIRICHLET_BD);
 
     cv::Mat r = result_.getMat();
-
+    
     int nUnknowns = 0;
     cv::Mat_<int> unknownIdx = buildPixelToIndexLookup(bm, quadtree, nUnknowns);
 
