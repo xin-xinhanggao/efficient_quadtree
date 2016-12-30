@@ -1,5 +1,14 @@
 #include "clone.h"
 #include <opencv2/opencv.hpp>
+#include <sys/time.h>
+
+struct timeval tv;
+
+long long getCurrentTime()
+{
+    gettimeofday(&tv,NULL);
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
 
 /**
  
@@ -37,7 +46,8 @@ int main(int argc, char **argv)
         std::cerr << argv[0] << " background foreground mask offsetx offsety" << std::endl;
         return -1;
     }
-    
+    long long start_time = getCurrentTime();
+
     cv::Mat background = cv::imread(argv[1]);
     cv::Mat foreground = cv::imread(argv[2]);
     cv::Mat mask = cv::imread(argv[3], CV_LOAD_IMAGE_GRAYSCALE);
@@ -46,17 +56,16 @@ int main(int argc, char **argv)
     
     
     cv::Mat result;
-    
-    naiveClone(background, foreground, mask, offsetx, offsety, result);
-    cv::imshow("Naive", result);
-    cv::imwrite("naive.png", result);
 
     seamlessClone(background, foreground, mask, offsetx, offsety, result, CLONE_AVERAGED_GRADIENTS);
-    cv::imshow("source Gradients", result);
-    cv::imwrite("source-gradients.png", result);
+    cv::imwrite("quad-source-gradients.png", result);
     
-    cv::waitKey();
-    
+    std::cout<<"quadtree method use time: "<<(getCurrentTime() - start_time) / 1000.<<std::endl;
+
+    start_time = getCurrentTime();
+    seamlessCloneNaive(background, foreground, mask, offsetx, offsety, result, CLONE_AVERAGED_GRADIENTS);
+    cv::imwrite("naive-source-gradients.png", result);
+    std::cout<<"naive method use time: "<<(getCurrentTime() - start_time) / 1000.<<std::endl;
     return 0;
 }
 

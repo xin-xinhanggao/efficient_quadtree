@@ -1,0 +1,3 @@
+advice offsetx offsety
+
+		50		50

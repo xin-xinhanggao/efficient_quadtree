@@ -394,7 +394,7 @@ void solvePoissonEquationsFast( //f means source value
             quadMat.at<float>(it->x + x,it->y + y) = color;
         }
     }
-    cv::imshow("quadMat", quadMat);
+    //cv::imwrite("quadMat.png", quadMat * 255.);
 
     cv::Mat f = makeContinuous(f_.getMat());
     cv::Mat_<uchar> bm = makeContinuous(bdMask_.getMat());
@@ -627,7 +627,7 @@ void solvePoissonEquations(
     cv::InputArray bdValues_,
     cv::OutputArray result_)
 {
-    // Input validation
+        // Input validation
 
     CV_Assert(
         !f_.empty() &&
@@ -641,7 +641,6 @@ void solvePoissonEquations(
         bdValues_.depth() == CV_32F &&
         f_.channels() == bdValues_.channels() &&
         bdMask_.channels() == 1);
-    
 
     // We assume continuous memory on input
     cv::Mat f = makeContinuous(f_.getMat());
@@ -705,9 +704,8 @@ void solvePoissonEquations(
             }
 
             // Start coefficients of left hand side. Based on discrete Laplacian with central difference.
-            //float lhs[] = { -4.f, 1.f, 1.f, 1.f, 1.f };
-            float lhs[] = { 4.f, -1.f, -1.f, -1.f, -1.f };
-            const bool hasNeumann = (bm(p) == NEUMANN_BD);
+            float lhs[] = { -4.f, 1.f, 1.f, 1.f, 1.f };
+            
             
             for (int n = 1; n < 5; ++n) 
             {
@@ -716,7 +714,7 @@ void solvePoissonEquations(
                 const bool hasNeighbor = bounds.contains(q);
                 const bool isNeighborDirichlet = hasNeighbor && (bm(q) == DIRICHLET_BD);
                 
-                if (!hasNeumann && !hasNeighbor) 
+                if (!hasNeighbor) 
                 {
                     lhs[center] += lhs[n];
                     lhs[n] = 0.f;
@@ -753,7 +751,6 @@ void solvePoissonEquations(
     std::cout<<"complete get matrix A"<<std::endl;
     std::cout<<"unknowns "<<nUnknowns<<std::endl;
     // Solve the sparse linear system of equations
-
 
     Eigen::SparseMatrix<float> A(nUnknowns, nUnknowns);
     A.setFromTriplets(lhsTriplets.begin(), lhsTriplets.end());
